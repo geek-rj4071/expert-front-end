@@ -196,6 +196,7 @@ export default function App() {
   const [newUserName, setNewUserName] = useState("");
   const [newUserRole, setNewUserRole] = useState("teacher");
   const [creatingUser, setCreatingUser] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState("");
   const [chatInput, setChatInput] = useState("");
   const [trainingDocs, setTrainingDocs] = useState([]);
   const [trainingCounts, setTrainingCounts] = useState({ documents: 0, chunks: 0, vectors: 0, totalChars: 0 });
@@ -603,6 +604,32 @@ export default function App() {
       setCreatingUser(false);
     }
   }, [api, loadManagedUsers, newUserEmail, newUserName, newUserRole, showToast]);
+
+  const deleteManagedUser = useCallback(
+    async (targetUser) => {
+      const user = targetUser || {};
+      const id = String(user.id || "").trim();
+      if (!id) return;
+      const role = String(user.role || "").trim().toLowerCase();
+      if (role !== "teacher" && role !== "student") {
+        showToast("Only teacher/student users can be removed");
+        return;
+      }
+      setDeletingUserId(id);
+      try {
+        await api(`${API_BASE}/admin/users/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+        });
+        await loadManagedUsers();
+        showToast("User removed");
+      } catch (err) {
+        showToast(String(err?.message || err));
+      } finally {
+        setDeletingUserId("");
+      }
+    },
+    [api, loadManagedUsers, showToast]
+  );
 
   const loadAvatars = useCallback(async () => {
     const list = await api(`${API_BASE}/avatars`, { method: "GET", skipAuth: true });
@@ -1305,8 +1332,21 @@ export default function App() {
                   <div className="empty">No users yet.</div>
                 ) : (
                   managedUsers.map((u) => (
-                    <div key={u.id} className="doc-item">
-                      {u.name || u.email} ({u.role})
+                    <div key={u.id} className="doc-item user-item">
+                      <div className="user-meta">
+                        <span>{u.name || u.email}</span>
+                        <span className={`role-tag ${String(u.role || "").toLowerCase()}`}>{String(u.role || "").toUpperCase()}</span>
+                      </div>
+                      <div className="user-actions">
+                        <button
+                          type="button"
+                          className="ghost"
+                          disabled={deletingUserId === u.id || !["teacher", "student"].includes(String(u.role || "").toLowerCase())}
+                          onClick={() => deleteManagedUser(u)}
+                        >
+                          {deletingUserId === u.id ? "Removing..." : "Remove"}
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}

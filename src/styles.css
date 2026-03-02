@@ -345,6 +345,35 @@ button.talk.recording {
   border-color: rgba(22, 19, 39, 0.14);
 }
 
+.student-transcript .value.transcript-line .sir-response {
+  display: inline-block;
+  margin-top: 4px;
+}
+
+.student-transcript .value.transcript-line .sir-formatted {
+  display: grid;
+  gap: 6px;
+}
+
+.student-transcript .value.transcript-line .sir-formatted p {
+  margin: 0;
+}
+
+.student-transcript .value.transcript-line .sir-formatted ul,
+.student-transcript .value.transcript-line .sir-formatted ol {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+}
+
+.student-transcript .value.transcript-line .sir-formatted code {
+  background: rgba(22, 19, 39, 0.08);
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-size: 12px;
+}
+
 .student-transcript .value.muted {
   color: var(--muted);
 }
@@ -469,6 +498,45 @@ select {
   border-bottom: 1px solid rgba(22, 19, 39, 0.09);
   padding: 8px 0;
   font-size: 14px;
+}
+
+.doc-item.user-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.user-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.role-tag {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.role-tag.teacher {
+  background: rgba(15, 159, 146, 0.14);
+  color: #0b6e65;
+}
+
+.role-tag.student {
+  background: rgba(240, 93, 63, 0.14);
+  color: #9f3d28;
+}
+
+.role-tag.admin {
+  background: rgba(22, 19, 39, 0.14);
+  color: #221d36;
 }
 
 .doc-item:last-child {
