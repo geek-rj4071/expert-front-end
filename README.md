@@ -80,3 +80,25 @@ If you deploy frontend separately, update this proxy target accordingly.
 - `npm run build` - production build
 - `npm run preview` - preview build locally
 
+## Auto Deploy On Every Push
+
+This repo includes GitHub Actions workflow:
+
+- `.github/workflows/docker-cicd.yml`
+
+On each push to `main`:
+
+1. Build Docker image
+2. Push image to GHCR:
+   - `ghcr.io/<github-user-or-org>/expert-front-end:latest`
+   - `ghcr.io/<github-user-or-org>/expert-front-end:sha-<commit>`
+3. Optional server deploy over SSH (if secrets are configured)
+
+### Required GitHub Secrets (for auto-deploy job)
+
+- `DEPLOY_HOST`
+- `DEPLOY_USER`
+- `DEPLOY_SSH_KEY`
+- `DEPLOY_PATH` (directory on server containing your `docker-compose.yml`)
+
+If these are not set, image build/push still runs, deploy job is skipped.
