@@ -4,6 +4,7 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/avatar-service").replac
 const TEACHER_NAME = "SP Sir";
 const AI_HEALTH_CACHE_MS = 180000;
 const RESPONSE_DELAY_MS = 5000;
+const SPEECH_RECOGNITION_LANG = "hi-IN";
 
 function normalizeVoiceCommand(text) {
   return String(text || "")
@@ -45,6 +46,106 @@ function pickMaleBrowserVoice() {
   const english = voices.filter((v) => String(v.lang || "").toLowerCase().startsWith("en"));
   const pool = english.length ? english : voices;
   return pool.find((v) => maleHints.some((hint) => hint.test(v.name))) || pool[0] || null;
+}
+
+function parseInlineFormattedText(text, keyPrefix) {
+  const source = String(text || "");
+  const tokens = source.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).filter(Boolean);
+  return tokens.map((token, index) => {
+    if (token.startsWith("**") && token.endsWith("**") && token.length > 4) {
+      return <strong key={`${keyPrefix}-b-${index}`}>{token.slice(2, -2)}</strong>;
+    }
+    if (token.startsWith("`") && token.endsWith("`") && token.length > 2) {
+      return <code key={`${keyPrefix}-c-${index}`}>{token.slice(1, -1)}</code>;
+    }
+    return token;
+  });
+}
+
+function normalizeSirMessage(text) {
+  let normalized = String(text || "").replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").trim();
+  if (!normalized) return "";
+  normalized = normalized.replace(
+    /\b(Concept|Formula|Step-by-step|Final Answer|Summary|Explanation|Answer|Example)\s*:/gi,
+    "\n$1:"
+  );
+  normalized = normalized.replace(/\s+(Step\s*\d+\s*:)/gi, "\n$1");
+  return normalized.trim();
+}
+
+function renderFormattedSirResponse(text) {
+  const normalized = normalizeSirMessage(text);
+  if (!normalized) return null;
+
+  const blocks = normalized
+    .split(/\n{2,}/)
+    .map((chunk) => chunk.trim())
+    .filter(Boolean);
+
+  return (
+    <div className="sir-formatted">
+      {blocks.map((block, blockIndex) => {
+        const lines = block.split("\n").map((line) => line.trim()).filter(Boolean);
+        const isBullet = lines.length > 1 && lines.every((line) => /^[-*•]\s+/.test(line));
+        const isOrdered = lines.length > 1 && lines.every((line) => /^\d+\.\s+/.test(line));
+
+        if (isBullet) {
+          return (
+            <ul key={`sir-ul-${blockIndex}`}>
+              {lines.map((line, lineIndex) => (
+                <li key={`sir-ul-${blockIndex}-${lineIndex}`}>
+                  {parseInlineFormattedText(line.replace(/^[-*•]\s+/, ""), `sir-ul-${blockIndex}-${lineIndex}`)}
+                </li>
+              ))}
+            </ul>
+          );
+        }
+
+        if (isOrdered) {
+          return (
+            <ol key={`sir-ol-${blockIndex}`}>
+              {lines.map((line, lineIndex) => (
+                <li key={`sir-ol-${blockIndex}-${lineIndex}`}>
+                  {parseInlineFormattedText(line.replace(/^\d+\.\s+/, ""), `sir-ol-${blockIndex}-${lineIndex}`)}
+                </li>
+              ))}
+            </ol>
+          );
+        }
+
+        if (lines.length > 1 && lines.every((line) => /^[A-Za-z][A-Za-z \-]{1,34}:\s+/.test(line))) {
+          return (
+            <div key={`sir-labeled-${blockIndex}`}>
+              {lines.map((line, lineIndex) => {
+                const parts = line.split(":");
+                const label = parts.shift() || "";
+                const body = parts.join(":").trim();
+                return (
+                  <p key={`sir-labeled-${blockIndex}-${lineIndex}`}>
+                    <strong>{label}:</strong> {parseInlineFormattedText(body, `sir-label-${blockIndex}-${lineIndex}`)}
+                  </p>
+                );
+              })}
+            </div>
+          );
+        }
+
+        const labeled = block.match(/^([A-Za-z][A-Za-z \-]{1,34}):\s*(.+)$/s);
+        if (labeled) {
+          const label = labeled[1].trim();
+          const body = labeled[2].trim();
+          return (
+            <p key={`sir-p-${blockIndex}`}>
+              <strong>{label}:</strong> {parseInlineFormattedText(body, `sir-p-${blockIndex}`)}
+            </p>
+          );
+        }
+
+        const paragraph = lines.join(" ");
+        return <p key={`sir-p-${blockIndex}`}>{parseInlineFormattedText(paragraph, `sir-p-${blockIndex}`)}</p>;
+      })}
+    </div>
+  );
 }
 
 export default function App() {
@@ -713,7 +814,7 @@ export default function App() {
     }
 
     const recognition = new Ctor();
-    recognition.lang = "en-US";
+    recognition.lang = SPEECH_RECOGNITION_LANG;
     recognition.interimResults = true;
     recognition.continuous = true;
 
@@ -1293,11 +1394,13 @@ export default function App() {
                     <div className="value muted">No conversation yet.</div>
                   ) : (
                     conversationTranscript.map((line) => (
-                      <div
-                        key={line.id}
-                        className={`value transcript-line bubble ${line.speaker === TEACHER_NAME ? "sir" : "student"}`}
-                      >
-                        <span className="speaker">{line.speaker}:</span> {line.text}
+                      <div key={line.id} className={`value transcript-line bubble ${line.speaker === TEACHER_NAME ? "sir" : "student"}`}>
+                        <span className="speaker">{line.speaker}:</span>{" "}
+                        {line.speaker === TEACHER_NAME ? (
+                          <div className="sir-response">{renderFormattedSirResponse(line.text)}</div>
+                        ) : (
+                          line.text
+                        )}
                       </div>
                     ))
                   )}
